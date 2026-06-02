@@ -30,8 +30,7 @@ env/
 Thumbs.db
 
 # Data (large files)
-data/raw/*
-data/processed/*
+data/
 !data/processed/.gitkeep
 !data/raw/.gitkeep
 *.zip
@@ -42,6 +41,9 @@ data/processed/*
 models/*.pt
 models/*.pth
 models/*.onnx
+src/models/*.pt
+src/models/*.pth
+src/models/*.onnx
 results/*/weights/
 
 # Training results (keep structure, ignore large files)
@@ -52,3 +54,7 @@ results/*/*.png
 *.log
 wandb/
 runs/
+
+# Large specific folders
+truck-overload-detection-system/backend/.venv/
+.codex/
