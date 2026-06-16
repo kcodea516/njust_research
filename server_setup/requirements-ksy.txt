@@ -1,0 +1,11 @@
+ultralytics==8.3.228
+opencv-python==4.10.0.84
+numpy>=1.26,<2.2
+pandas>=2.2,<3.0
+matplotlib>=3.8,<4.0
+pyyaml>=6.0.1
+tqdm>=4.66
+huggingface_hub[cli]>=1.9.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20

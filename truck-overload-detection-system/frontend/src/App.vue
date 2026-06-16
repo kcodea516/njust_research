@@ -283,25 +283,15 @@
             />
           </div>
 
-          <div class="result-section-title">超载检测模块骨架</div>
-          <div class="result-grid four-cols">
+          <div class="result-section-title">超载检测模块</div>
+          <div class="result-grid two-cols">
             <ResultCard 
-              title="荷载限制标准" 
-              :value="overloadLimitText"
-              :meta="overloadPendingMeta"
-            />
-            <ResultCard 
-              title="视觉测重预估" 
-              :value="overloadWeightText"
-              :meta="overloadPendingMeta"
-            />
-            <ResultCard 
-              title="超载检测结果" 
+              title="超载预警结果" 
               :value="overloadResultText"
               :meta="overloadPendingMeta"
             />
             <ResultCard 
-              title="超载置信概率" 
+              title="预警置信度" 
               :value="overloadConfidenceText"
               :meta="overloadPendingMeta"
             />
@@ -479,14 +469,6 @@ const plateMeta = computed(() => {
 
 const overloadPendingMeta = computed(() => {
   return result.value?.overload?.module_message || "超载检测模型暂未接入";
-});
-
-const overloadLimitText = computed(() => {
-  return result.value?.overload?.limit_weight ? `${result.value.overload.limit_weight} 吨` : "--";
-});
-
-const overloadWeightText = computed(() => {
-  return result.value?.overload?.actual_weight ? `${result.value.overload.actual_weight} 吨` : "--";
 });
 
 const overloadResultText = computed(() => {

@@ -15,11 +15,13 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 OUTPUT_DIR = BASE_DIR / "outputs"
+ULTRALYTICS_CONFIG_DIR = BASE_DIR / ".ultralytics"
 FRONTEND_DIR = PROJECT_DIR / "frontend"
 FRONTEND_DIST_DIR = FRONTEND_DIR / "dist"
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ULTRALYTICS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="高速道路车辆智能识别检测系统",
@@ -61,6 +63,7 @@ def build_pending_overload_result() -> dict:
         "basis": "当前阶段仅展示超载检测模块骨架，尚未输出判定数据。",
     }
 
+
 if FRONTEND_DIST_DIR.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="assets")
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
@@ -88,7 +91,8 @@ async def analyze_vehicle_image(
     if conf_threshold < 0.05 or conf_threshold > 0.95:
         raise HTTPException(status_code=400, detail="检测阈值需在 0.05 到 0.95 之间")
 
-    suffix = Path(file.filename or "upload.jpg").suffix.lower() or ".jpg"
+    original_filename = file.filename or "upload.jpg"
+    suffix = Path(original_filename).suffix.lower() or ".jpg"
     saved_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}{suffix}"
     image_path = UPLOAD_DIR / saved_name
 
@@ -107,9 +111,10 @@ async def analyze_vehicle_image(
         "plate": build_pending_plate_result(),
         "overload": build_pending_overload_result(),
         "workflow": {
-            "summary": "当前已接入车辆目标检测与车型识别模型；车牌识别和超载检测仅保留待接入模块骨架。",
+            "summary": "当前已接入车辆目标检测与车型识别模型；车牌识别和超载检测仍等待真实模型接入。",
             "next_steps": ["接入车牌检测与 OCR 模型", "接入超载嫌疑判定模型", "增加人工复核与历史记录"],
         },
         "image_filename": saved_name,
+        "original_filename": original_filename,
         "processed_at": datetime.now().isoformat(timespec="seconds"),
     }

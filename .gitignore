@@ -33,9 +33,11 @@ Thumbs.db
 data/
 !data/processed/.gitkeep
 !data/raw/.gitkeep
+upload_pack/
 *.zip
 *.tar.gz
 *.tar
+*.tar.zst
 
 # Model weights (large files)
 models/*.pt
