@@ -252,19 +252,50 @@ pt 文件：保存模型权重，用来初始化模型
 
 ## 8. 后续实验执行手册
 
-后续实验按“先消融、再扩展、最后集成”的顺序进行。每一组尽量只改变一个核心变量，这样才能判断提升到底来自哪里。
-
-当前主要变量：
+后续实验按“先消融、再扩展、最后集成”的顺序进行。你有两张 3090，所以每个时间段采用“两张卡各跑一组单卡实验”的方式：
 
 ```text
-1. 模型规模：YOLO26l / YOLO26x
-2. 输入尺寸：640 / 960，768 作为已完成参考
-3. 分类损失：默认 BCE / Focal BCE / Focal BCE + alpha auto
+终端 A：使用 GPU0，命令里写 --device 0
+终端 B：使用 GPU1，命令里写 --device 1
 ```
 
-当前建议：Focal Loss 相关实验先用单卡跑。你之前的双卡问题发生在 DDP 验证阶段 `dist.gather_object`，属于多卡通信问题，不是数据或模型错误。当前目标是比较损失函数，不值得先把时间花在修 DDP 通信上。
+这样不使用 DDP，也不会触发双卡验证阶段的 `dist.gather_object` 通信问题；同时两张卡都能利用起来。
 
-### 8.1 第一组：YOLO26l 960 测试 Focal BCE
+### 8.0 第零步：更新代码并清理刚才试跑目录
+
+先在服务器上执行一次，删除刚才失败或试跑产生的 Focal 目录，避免后续目录名冲突。
+
+```bash
+conda activate ksy
+cd /home/kangsiyuan/research/njust_research
+
+git pull
+
+rm -rf src/models/runs/detect/Vehicle5_YOLO26l_960_focal_g15
+rm -rf src/models/runs/detect/Vehicle5_YOLO26l_960_focal_g15_alpha_auto
+```
+
+如果 `git pull` 提示本地 `loss_patches.py` 有改动，执行：
+
+```bash
+git restore src/models/loss_patches.py
+git pull
+```
+
+### 8.1 第一批并行实验：YOLO26l 960 的 Focal 消融
+
+第一批同时跑第一组和第二组。两组都固定模型和尺寸，只比较是否加入类别权重。
+
+```text
+共同固定：
+模型 = YOLO26l
+imgsz = 960
+loss = focal
+gamma = 1.5
+batch = 4
+```
+
+#### 第一组：YOLO26l 960 测试 Focal BCE
 
 这组实验只改分类损失，不加入类别权重。
 
@@ -285,7 +316,7 @@ device = 单卡
 只加入 Focal 的难样本聚焦机制，是否比 YOLO26l 960 默认 BCE 更好？
 ```
 
-运行命令：
+终端 A，使用 GPU0：
 
 ```bash
 conda activate ksy
@@ -297,7 +328,7 @@ python src/models/train_chexing.py \
   --epochs 100 \
   --batch 4 \
   --imgsz 960 \
-  --device 1 \
+  --device 0 \
   --workers 4 \
   --cos-lr \
   --name Vehicle5_YOLO26l_960_focal_g15 \
@@ -314,7 +345,7 @@ python src/models/train_chexing.py \
 判断标准：弱类别提升且整体 mAP 不明显下降，才认为 Focal BCE 有价值
 ```
 
-### 8.2 第二组：YOLO26l 960 测试 Focal BCE 加类别权重
+#### 第二组：YOLO26l 960 测试 Focal BCE 加类别权重
 
 这组实验在 Focal BCE 基础上加入自动类别权重。
 
@@ -335,7 +366,7 @@ device = 单卡
 在 Focal 难样本聚焦之外，再给少数类更高权重，是否进一步提升弱类别？
 ```
 
-运行命令：
+终端 B，使用 GPU1：
 
 ```bash
 conda activate ksy
@@ -365,7 +396,17 @@ python src/models/train_chexing.py \
 判断标准：如果弱类别提升但整体 mAP 或 Precision 明显下降，说明 alpha 权重可能过强
 ```
 
-### 8.3 第三组：YOLO26x 960 默认 BCE
+### 8.2 第二批并行实验：YOLO26x 默认 BCE 上限测试
+
+第二批同时跑第三组和第四组。两组都不改损失函数，只测试更大的 YOLO26x 在不同尺寸下的表现。
+
+```text
+共同固定：
+模型 = YOLO26x
+loss = bce
+```
+
+#### 第三组：YOLO26x 960 默认 BCE
 
 这组实验不改损失函数，只换更大的模型。
 
@@ -384,7 +425,7 @@ device = 单卡
 在相同 960 尺寸和默认损失下，更大的 YOLO26x 是否比 YOLO26l 有更高上限？
 ```
 
-运行命令：
+终端 A，使用 GPU0：
 
 ```bash
 conda activate ksy
@@ -396,7 +437,7 @@ python src/models/train_chexing.py \
   --epochs 100 \
   --batch 2 \
   --imgsz 960 \
-  --device 1 \
+  --device 0 \
   --workers 4 \
   --cos-lr \
   --name Vehicle5_YOLO26x_960_bce \
@@ -417,7 +458,7 @@ python src/models/train_chexing.py \
 判断标准：如果提升很小但耗时显著增加，YOLO26x 不一定值得作为最终单模型
 ```
 
-### 8.4 第四组：YOLO26x 640 默认 BCE
+#### 第四组：YOLO26x 640 默认 BCE
 
 这组实验测试大模型在较低分辨率下的性价比。
 
@@ -436,7 +477,7 @@ device = 优先单卡；如果单卡太慢且默认 BCE 双卡稳定，可以再
 YOLO26x 在 640 尺寸下是否能接近或超过 YOLO26l 960，同时获得更快推理速度？
 ```
 
-运行命令：
+终端 B，使用 GPU1：
 
 ```bash
 conda activate ksy
@@ -470,7 +511,7 @@ python src/models/train_chexing.py \
 判断标准：如果 YOLO26x 640 精度接近 YOLO26l 960 且速度更好，可以作为部署候选
 ```
 
-### 8.5 第五组：条件实验，Focal gamma 扫描
+### 8.3 第三批条件并行实验：Focal gamma 扫描
 
 只有第一组 `YOLO26l_960_focal_g15` 比默认 BCE 更好时，才跑这一组。
 
@@ -490,7 +531,7 @@ gamma = 1.0 / 2.0
 Focal 的聚焦强度 gamma 取多少更合适？
 ```
 
-运行命令，gamma = 1.0：
+终端 A，使用 GPU0，gamma = 1.0：
 
 ```bash
 conda activate ksy
@@ -502,7 +543,7 @@ python src/models/train_chexing.py \
   --epochs 100 \
   --batch 4 \
   --imgsz 960 \
-  --device 1 \
+  --device 0 \
   --workers 4 \
   --cos-lr \
   --name Vehicle5_YOLO26l_960_focal_g10 \
@@ -511,7 +552,7 @@ python src/models/train_chexing.py \
   --focal-alpha none
 ```
 
-运行命令，gamma = 2.0：
+终端 B，使用 GPU1，gamma = 2.0：
 
 ```bash
 conda activate ksy
@@ -540,14 +581,18 @@ python src/models/train_chexing.py \
 判断标准：选择整体和弱类别最平衡的 gamma，不一定选最高整体 mAP
 ```
 
-### 8.6 第六组：条件实验，YOLO26x 960 测试 Focal BCE
+### 8.4 第四批条件并行实验：YOLO26x 960 的 Focal 消融
 
-只有同时满足下面两个条件时，才跑这一组：
+只有同时满足下面条件时，才跑这一批：
 
 ```text
 1. YOLO26l 960 上 Focal BCE 明确有效
 2. YOLO26x 960 BCE 比 YOLO26l 960 BCE 有明显提升或有潜力
 ```
+
+如果 YOLO26l 的第二组 `alpha auto` 没有收益，那么这一批只跑第六组，不跑第七组。
+
+#### 第六组：YOLO26x 960 测试 Focal BCE
 
 固定：
 
@@ -565,7 +610,7 @@ alpha = none
 更大的 YOLO26x 是否也能从 Focal BCE 中受益？
 ```
 
-运行命令：
+终端 A，使用 GPU0：
 
 ```bash
 conda activate ksy
@@ -577,7 +622,7 @@ python src/models/train_chexing.py \
   --epochs 100 \
   --batch 2 \
   --imgsz 960 \
-  --device 1 \
+  --device 0 \
   --workers 4 \
   --cos-lr \
   --name Vehicle5_YOLO26x_960_focal_g15 \
@@ -595,7 +640,7 @@ python src/models/train_chexing.py \
 判断标准：如果提升不明显，就不继续给 YOLO26x 跑 alpha auto
 ```
 
-### 8.7 第七组：条件实验，YOLO26x 960 测试 Focal BCE 加类别权重
+#### 第七组：YOLO26x 960 测试 Focal BCE 加类别权重
 
 只有当第二组 `YOLO26l 960 + Focal + alpha auto` 明确优于第一组，并且第六组 YOLO26x Focal 也有效时，才跑这一组。
 
@@ -615,7 +660,7 @@ alpha = auto
 YOLO26x 是否也需要类别权重来提升少数类？
 ```
 
-运行命令：
+终端 B，使用 GPU1：
 
 ```bash
 conda activate ksy
