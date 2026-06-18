@@ -114,20 +114,17 @@ def count_yolo_labels(labels_dir: Path, nc: int) -> list[int]:
 def enable_focal_loss(gamma: float, alpha: float | Iterable[float] | None = None) -> None:
     """Patch Ultralytics detection loss so cls BCE uses focal BCE."""
 
-    from ultralytics.nn import tasks as tasks_module
     from ultralytics.utils import loss as loss_module
 
-    base_cls = getattr(loss_module.v8DetectionLoss, "_njust_base_loss", loss_module.v8DetectionLoss)
+    loss_cls = loss_module.v8DetectionLoss
+    original_init = getattr(loss_cls, "_njust_original_init", loss_cls.__init__)
 
-    class FocalDetectionLoss(base_cls):  # type: ignore[misc, valid-type]
-        _njust_base_loss = base_cls
+    def patched_init(self, model, tal_topk: int = 10):
+        original_init(self, model, tal_topk=tal_topk)
+        self.bce = FocalBCEWithLogitsLoss(gamma=gamma, alpha=alpha).to(self.device)
 
-        def __init__(self, model, tal_topk: int = 10):
-            super().__init__(model, tal_topk=tal_topk)
-            self.bce = FocalBCEWithLogitsLoss(gamma=gamma, alpha=alpha).to(self.device)
-
-    loss_module.v8DetectionLoss = FocalDetectionLoss
-    tasks_module.v8DetectionLoss = FocalDetectionLoss
+    loss_cls._njust_original_init = original_init
+    loss_cls.__init__ = patched_init
 
 
 def _resolve_split_path(data_yaml: Path, data: dict, split: str) -> Path:
