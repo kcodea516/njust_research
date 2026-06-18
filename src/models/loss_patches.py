@@ -119,8 +119,8 @@ def enable_focal_loss(gamma: float, alpha: float | Iterable[float] | None = None
     loss_cls = loss_module.v8DetectionLoss
     original_init = getattr(loss_cls, "_njust_original_init", loss_cls.__init__)
 
-    def patched_init(self, model, tal_topk: int = 10):
-        original_init(self, model, tal_topk=tal_topk)
+    def patched_init(self, model, *args, **kwargs):
+        original_init(self, model, *args, **kwargs)
         self.bce = FocalBCEWithLogitsLoss(gamma=gamma, alpha=alpha).to(self.device)
 
     loss_cls._njust_original_init = original_init
