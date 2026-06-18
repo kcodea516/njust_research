@@ -60,3 +60,37 @@ runs/
 # Large specific folders
 truck-overload-detection-system/backend/.venv/
 .codex/
+# Local datasets and symlinks
+/data
+/data/
+data
+data/
+*.cache
+
+# Raw archives
+/upload_pack/
+*.tar
+*.tar.zst
+*.zip
+*.7z
+*.rar
+
+# Pretrained and trained weights
+/weights/
+/weights/**
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Ignore trained weights inside experiment runs, keep csv/png/yaml
+src/models/runs/**/weights/
+src/models/runs/**/*.pt
+src/models/runs/**/*.pth
+
+# Logs/cache
+*.log
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.cache/

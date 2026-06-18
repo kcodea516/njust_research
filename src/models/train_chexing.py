@@ -15,24 +15,23 @@ except Exception:
     pass
 
 
-PROJECT_ROOT = Path("/home/kang/research")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = PROJECT_ROOT / "data/yolo_chexing_dataset/chexing.yaml"
-DEFAULT_BASE_WEIGHTS = PROJECT_ROOT / "src/models/runs/detect/BIT_Vehicle_Model/weights/best.pt"
-FALLBACK_WEIGHTS = PROJECT_ROOT / "src/models/yolov8n.pt"
+DEFAULT_BASE_WEIGHTS = PROJECT_ROOT / "weights/pretrained/yolo11m.pt"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train a five-class heavy-truck YOLO detector.")
+    parser = argparse.ArgumentParser(description="Train a five-class heavy-truck YOLO11 detector.")
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="Path to chexing.yaml.")
-    parser.add_argument("--weights", type=Path, default=DEFAULT_BASE_WEIGHTS, help="Initial weights.")
-    parser.add_argument("--epochs", type=int, default=80)
-    parser.add_argument("--batch", type=int, default=16)
+    parser.add_argument("--weights", type=Path, default=DEFAULT_BASE_WEIGHTS, help="Initial YOLO11 weights.")
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--device", default=None, help="Ultralytics device value, for example 0, 0,1, or cpu.")
-    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=16)
     parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--project", type=Path, default=PROJECT_ROOT / "src/models/runs/detect")
-    parser.add_argument("--name", default="Heavy_Vehicle_Model")
+    parser.add_argument("--name", default="Vehicle5_YOLO11m_2x3090")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--cache", action="store_true", help="Cache images if server memory is enough.")
     parser.add_argument("--cos-lr", action="store_true", help="Use cosine learning-rate schedule.")
@@ -42,29 +41,31 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_weights(path: Path) -> Path | str:
+def resolve_weights(path: Path) -> Path:
     if path.exists():
         return path
-    if FALLBACK_WEIGHTS.exists():
-        print(f"Initial weights not found: {path}. Falling back to {FALLBACK_WEIGHTS}.")
-        return FALLBACK_WEIGHTS
-    print(f"Initial weights not found: {path}. Falling back to Ultralytics yolov8n.pt name.")
-    return "yolov8n.pt"
+    raise FileNotFoundError(
+        f"YOLO11 weights not found: {path}\n"
+        "Please download yolo11m.pt to weights/pretrained/yolo11m.pt first."
+    )
 
 
 def resolve_device(device_arg: str | None) -> str | int:
     if device_arg:
         return int(device_arg) if device_arg.isdigit() else device_arg
-    return 0 if torch.cuda.is_available() else "cpu"
+    return "0,1" if torch.cuda.device_count() >= 2 else (0 if torch.cuda.is_available() else "cpu")
 
 
 def train() -> None:
     args = parse_args()
+
     if not args.data.exists():
         raise FileNotFoundError(f"Dataset config not found: {args.data}")
 
     weights = resolve_weights(args.weights)
     device = resolve_device(args.device)
+
+    print(f"Project root: {PROJECT_ROOT}")
     print(f"Data: {args.data}")
     print(f"Weights: {weights}")
     print(f"Device: {device}")
