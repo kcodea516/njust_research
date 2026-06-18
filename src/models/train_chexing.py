@@ -5,6 +5,8 @@ from pathlib import Path
 import torch
 from ultralytics import YOLO, settings
 
+from loss_patches import enable_focal_loss, parse_focal_alpha
+
 
 os.environ.setdefault("YOLO_OFFLINE", "True")
 os.environ.setdefault("YOLO_SETTINGS_CHECK", "False")
@@ -21,9 +23,9 @@ DEFAULT_BASE_WEIGHTS = PROJECT_ROOT / "weights/pretrained/yolo11m.pt"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train a five-class heavy-truck YOLO11 detector.")
+    parser = argparse.ArgumentParser(description="Train a five-class heavy-truck YOLO detector.")
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="Path to chexing.yaml.")
-    parser.add_argument("--weights", type=Path, default=DEFAULT_BASE_WEIGHTS, help="Initial YOLO11 weights.")
+    parser.add_argument("--weights", type=Path, default=DEFAULT_BASE_WEIGHTS, help="Initial YOLO weights.")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--imgsz", type=int, default=640)
@@ -38,6 +40,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--close-mosaic", type=int, default=10)
     parser.add_argument("--lr0", type=float, default=0.01)
     parser.add_argument("--optimizer", default="auto")
+    parser.add_argument("--loss", choices=("bce", "focal"), default="bce", help="Classification loss variant.")
+    parser.add_argument("--focal-gamma", type=float, default=1.5, help="Focal-loss focusing parameter.")
+    parser.add_argument(
+        "--focal-alpha",
+        default="none",
+        help="Focal alpha: none, auto, scalar, or comma-separated per-class values.",
+    )
+    parser.add_argument(
+        "--focal-alpha-power",
+        type=float,
+        default=0.5,
+        help="Power used when --focal-alpha auto converts class counts to alpha values.",
+    )
     return parser.parse_args()
 
 
@@ -69,6 +84,15 @@ def train() -> None:
     print(f"Data: {args.data}")
     print(f"Weights: {weights}")
     print(f"Device: {device}")
+    print(f"Loss: {args.loss}")
+
+    if args.loss == "focal":
+        alpha = parse_focal_alpha(args.focal_alpha, args.data, power=args.focal_alpha_power)
+        print(f"Focal gamma: {args.focal_gamma}")
+        print(f"Focal alpha: {alpha}")
+        if isinstance(device, str) and "," in device:
+            print("Warning: focal loss is enabled by a runtime patch; verify DDP results before using multi-GPU runs.")
+        enable_focal_loss(gamma=args.focal_gamma, alpha=alpha)
 
     model = YOLO(str(weights))
     model.train(
