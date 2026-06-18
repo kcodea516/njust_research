@@ -29,68 +29,46 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data (large files)
-data/
-!data/processed/.gitkeep
-!data/raw/.gitkeep
-upload_pack/
-*.zip
-*.tar.gz
-*.tar
-*.tar.zst
-
-# Model weights (large files)
-models/*.pt
-models/*.pth
-models/*.onnx
-src/models/*.pt
-src/models/*.pth
-src/models/*.onnx
-results/*/weights/
-
-# Training results (keep structure, ignore large files)
-results/*/train_batch*.jpg
-results/*/*.png
-
-# Logs
-*.log
-wandb/
-runs/
-
-# Large specific folders
-truck-overload-detection-system/backend/.venv/
-.codex/
-# Local datasets and symlinks
+# Local datasets and data symlinks
 /data
 /data/
 data
 data/
 *.cache
 
-# Raw archives
+# Upload packs and raw archives
 /upload_pack/
+upload_pack/
+upload_pack/**
+*.zip
+*.tar.gz
 *.tar
 *.tar.zst
-*.zip
 *.7z
 *.rar
 
-# Pretrained and trained weights
+# Root pretrained/model weights
 /weights/
 /weights/**
-*.pt
-*.pth
-*.onnx
-*.engine
+models/*.pt
+models/*.pth
+models/*.onnx
+src/models/*.pt
+src/models/*.pth
+src/models/*.onnx
 
-# Ignore trained weights inside experiment runs, keep csv/png/yaml
+# Keep experiment artifacts under src/models/runs,
+# but ignore trained checkpoint weights
 src/models/runs/**/weights/
 src/models/runs/**/*.pt
 src/models/runs/**/*.pth
+src/models/runs/**/*.onnx
+src/models/runs/**/*.engine
 
-# Logs/cache
+# Logs and trackers
 *.log
-__pycache__/
-*.py[cod]
-.ipynb_checkpoints/
-.cache/
+wandb/
+
+# Local tools
+.codex/
+truck-overload-detection-system/backend/.venv/
