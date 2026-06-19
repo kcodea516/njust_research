@@ -10,8 +10,16 @@
 | Vehicle5_YOLO26l_640_2x3090-2 | 50 | 0.8746 | 0.9322 | 0.9312 | 0.8366 |
 | Vehicle5_YOLO26l_768_1x3090-2 | 75 | 0.8876 | 0.9235 | 0.9277 | 0.8315 |
 | Vehicle5_YOLO26l_960_1x3090-2 | 79 | 0.8921 | 0.9257 | 0.9384 | 0.8485 |
+| Vehicle5_YOLO26l_960_focal_g15 | 70 | 0.9077 | 0.9018 | 0.9381 | 0.8352 |
+| Vehicle5_YOLO26l_960_focal_g15_alpha_auto | 67 | 0.8900 | 0.9212 | 0.9410 | 0.8363 |
+| Vehicle5_YOLO26x_640_bce | 69 | 0.9092 | 0.8709 | 0.9263 | 0.8270 |
+| Vehicle5_YOLO26x_960_bce | 75 | 0.9230 | 0.8975 | 0.9327 | 0.8342 |
 
-当前最优 baseline 是 `YOLO26l 960`。后续改损失函数时，应该优先在这个设置上做对比，而不是重新把 640、768、960 都跑一遍。
+当前最优单模型仍然是 `YOLO26l 960 + 默认 BCE`，也就是 `Vehicle5_YOLO26l_960_1x3090-2`。
+
+第一批 Focal 消融结果显示，`gamma=1.5` 的 Focal BCE 并未优于默认 BCE；加入 `alpha auto` 后 mAP50 略有提升，但 mAP50-95 仍明显低于 baseline。因此当前阶段不继续扩展 YOLO26l Focal 实验，下一步优先测试 YOLO26x 默认 BCE 的模型容量上限。
+
+第二批 YOLO26x 默认 BCE 结果显示，更大的模型容量没有带来收益。`YOLO26x 960` 的 Precision 提升到 0.9230，但 Recall 降到 0.8975，mAP50-95 只有 0.8342，比 `YOLO26l 960` 低 0.0143；`YOLO26x 640` 的 mAP50-95 进一步降到 0.8270，且混淆矩阵中 `Zhatu` 对角线只有约 0.73，弱类别表现不稳定。因此当前不继续跑 YOLO26x Focal，车辆检测单模型优先保留 `YOLO26l 960 + 默认 BCE`。
 
 注意：本地 `runs` 目录里目前没有 `weights/best.pt`。如果要做推理、复验或集成，需要把服务器上的 `weights/` 目录同步回来。
 
@@ -515,6 +523,8 @@ python src/models/train_chexing.py \
 
 只有第一组 `YOLO26l_960_focal_g15` 比默认 BCE 更好时，才跑这一组。
 
+当前第一批结果中，`YOLO26l_960_focal_g15` 和 `YOLO26l_960_focal_g15_alpha_auto` 的 mAP50-95 均低于默认 BCE baseline，因此暂时不跑 gamma 扫描。
+
 固定：
 
 ```text
@@ -591,6 +601,8 @@ python src/models/train_chexing.py \
 ```
 
 如果 YOLO26l 的第二组 `alpha auto` 没有收益，那么这一批只跑第六组，不跑第七组。
+
+当前 YOLO26l Focal 消融没有超过默认 BCE，YOLO26x 默认 BCE 也没有超过 YOLO26l 960 baseline，因此暂时不跑 YOLO26x Focal。继续给 YOLO26x 加 Focal 只会扩大实验成本，且缺少明确收益依据。
 
 #### 第六组：YOLO26x 960 测试 Focal BCE
 
