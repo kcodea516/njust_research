@@ -72,3 +72,7 @@ wandb/
 # Local tools
 .codex/
 truck-overload-detection-system/backend/.venv/
+
+# Local software copyright application materials
+车辆超限智能识别系统-软著申报材料/
+*_backup_*/
